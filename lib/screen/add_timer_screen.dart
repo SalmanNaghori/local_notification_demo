@@ -50,7 +50,6 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
     if (widget.fromEdit) {
       setTimeModel = widget.setTimeModel!;
       localSetTimes.add(setTimeModel);
-      id = setTimeModel.id;
     } else {
       setTimeModel = SetTimeModel(
         dateId: [],
@@ -148,6 +147,9 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                           itemCount: listodTimer.setTime.length,
                           itemBuilder: (_, ind) {
                             final selectedIsTime = listodTimer.setTime[ind];
+                            if (widget.fromEdit) {
+                              id = listodTimer.timeId[ind];
+                            }
                             return GestureDetector(
                               onTap: () {
                                 // showPlatformTimePicker(context, "12:00 PM");
@@ -236,6 +238,7 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                               NotificationService.cancelNotification(id);
                               widget.setTimeModel = localSetTimes[index];
                               localSetTimes.removeAt(index);
+
                               AddTimerScreen.listOfSetTime.notifyListeners();
                             } else {
                               localSetTimes.removeAt(index);
