@@ -13,7 +13,7 @@ class BottomNavButton extends StatelessWidget {
   Function onPressed;
 
   BottomNavButton({
-    Key? key,
+    super.key,
     required this.text,
     this.textColor = Colors.white,
     this.height,
@@ -22,7 +22,7 @@ class BottomNavButton extends StatelessWidget {
     this.buttonTextColor,
     this.elevation,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
