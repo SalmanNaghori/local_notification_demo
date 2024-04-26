@@ -1,6 +1,5 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+
 import 'package:local_notification_demo/logger.dart';
 import 'package:local_notification_demo/model/set_time_model.dart';
 import 'package:local_notification_demo/screen/add_timer_screen.dart';
@@ -25,6 +24,7 @@ class _ListOfTimerState extends State<ListOfTimer> {
   @override
   Widget build(BuildContext context) {
     logger.w(AddTimerScreen.listOfSetTime.value);
+
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () {

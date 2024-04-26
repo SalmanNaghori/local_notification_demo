@@ -1,11 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:intl/intl.dart';
 import 'package:local_notification_demo/logger.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-
-import '../screen/add_timer_screen.dart';
 
 class NotificationService {
   static final notificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -33,6 +29,7 @@ class NotificationService {
     int minutes,
     String title,
     String body,
+    Function getId,
   ) async {
     var androidDetails = const AndroidNotificationDetails(
       'channel 65',
@@ -54,11 +51,6 @@ class NotificationService {
       DateTime scheduledTime =
           DateTime(date.year, date.month, date.day, hour, minutes);
 
-      logger.e("scheduledTime=======${scheduledTime.toString()}");
-
-      logger.d(
-          'Scheduled notification for: ${DateFormat('yyyy-MM-dd HH:mm').format(scheduledTime)}');
-
       // If scheduled time is in the past, schedule for the next occurrence
       if (scheduledTime.isBefore(DateTime.now())) {
         scheduledTime = scheduledTime.add(const Duration(days: 1));
@@ -71,9 +63,9 @@ class NotificationService {
       // Generate a unique ID based on the date and time
       int idUnique = int.parse(
           '${scheduledTime.day}${scheduledTime.hour}${scheduledTime.minute}');
-      logger.f("==idUnique ==$idUnique");
-      AddTimerScreen.listOfUniqueId.add(idUnique);
+      // logger.f("==idUnique ==$idUnique");
 
+      getId(idUnique);
       try {
         await notificationsPlugin.zonedSchedule(
           idUnique, // Unique ID for each notification
@@ -85,11 +77,9 @@ class NotificationService {
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          //notification to trigger even if the device is in idle/doze mode
         );
       } catch (e) {
         logger.e('Error scheduling notification: $e');
-        // Handle the error here as needed
       }
     }
   }

@@ -1,13 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:local_notification_demo/const/const.dart';
 import 'package:local_notification_demo/logger.dart';
 import 'package:local_notification_demo/model/set_time_model.dart';
-import 'package:local_notification_demo/screen/widget/schedule.dart';
 import 'package:local_notification_demo/services/notification_service.dart';
-
 import 'package:local_notification_demo/utils/custom_bottom_sheet.dart';
 import 'package:local_notification_demo/utils/date_format.dart';
 import 'package:local_notification_demo/utils/date_picker.dart';
@@ -42,7 +39,7 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
     id: 0,
   );
   final List<SetTimeModel> localSetTimes = [];
-  int id = 0;
+  List<int> previousid = [];
 
   @override
   void initState() {
@@ -50,6 +47,9 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
     if (widget.fromEdit) {
       setTimeModel = widget.setTimeModel!;
       localSetTimes.add(setTimeModel);
+      logger.e("==previous=id==${setTimeModel.timeId}");
+      previousid = setTimeModel.timeId;
+      logger.f("==previous=id==$previousid");
     } else {
       setTimeModel = SetTimeModel(
         dateId: [],
@@ -60,6 +60,7 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
         startDate: null,
         endDate: null,
       );
+
       localSetTimes.add(setTimeModel);
     }
   }
@@ -68,15 +69,18 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    logger.w(AddTimerScreen.listOfSetTime.value);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text(
+          widget.title,
+          style: const TextStyle(color: Colors.black),
+        ),
       ),
       body: ValueListenableBuilder(
         valueListenable: isDateSelected,
         builder: (_, selectedDate, __) {
           return ListView.builder(
+              shrinkWrap: true,
               itemCount: localSetTimes.length,
               itemBuilder: (ctx, index) {
                 final listodTimer = localSetTimes[index];
@@ -145,16 +149,14 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                       ListView.builder(
                           shrinkWrap: true,
                           itemCount: listodTimer.setTime.length,
-                          itemBuilder: (_, ind) {
-                            final selectedIsTime = listodTimer.setTime[ind];
-                            if (widget.fromEdit) {
-                              id = listodTimer.timeId[ind];
-                            }
+                          itemBuilder: (_, subIndex) {
+                            final selectedIsTime =
+                                listodTimer.setTime[subIndex];
+                            if (widget.fromEdit) {}
                             return GestureDetector(
                               onTap: () {
-                                // showPlatformTimePicker(context, "12:00 PM");
                                 openTimePickerBottomSheet(
-                                    selectedIsTime, index, ind);
+                                    selectedIsTime, index, subIndex);
                               },
                               child: Padding(
                                 padding: const EdgeInsets.only(
@@ -183,19 +185,8 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                                           children: [
                                             GestureDetector(
                                               onTap: () {
-                                                // listodTimer.setTime.add(null);
-                                                if (widget.fromEdit) {
-                                                  listodTimer.setTime
-                                                      .removeAt(ind);
-                                                  NotificationService
-                                                      .cancelNotification(
-                                                          listodTimer
-                                                              .timeId[ind]);
-                                                } else {
-                                                  listodTimer.setTime
-                                                      .removeAt(ind);
-                                                }
-
+                                                removeTime(
+                                                    subIndex, listodTimer);
                                                 isDateSelected.value =
                                                     !isDateSelected.value;
                                               },
@@ -207,7 +198,7 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                                             ),
                                             GestureDetector(
                                               onTap: () {
-                                                listodTimer.setTime.add(null);
+                                                addTime(listodTimer);
                                                 isDateSelected.value =
                                                     !isDateSelected.value;
                                               },
@@ -215,7 +206,8 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                                                 padding:
                                                     EdgeInsets.only(left: 15),
                                                 child: Icon(
-                                                    Icons.add_alarm_outlined),
+                                                  Icons.add_alarm_outlined,
+                                                ),
                                               ),
                                             ),
                                           ],
@@ -229,26 +221,11 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                           }),
                       Padding(
                         padding: const EdgeInsets.all(8.0),
-                        child: ScheduleBtn(
-                          onTap: () {
-                            AddTimerScreen.listOfUniqueId.clear();
-
-                            scheduleNotification(index);
-                            if (widget.fromEdit) {
-                              NotificationService.cancelNotification(id);
-                              widget.setTimeModel = localSetTimes[index];
-                              localSetTimes.removeAt(index);
-
-                              AddTimerScreen.listOfSetTime.notifyListeners();
-                            } else {
-                              localSetTimes.removeAt(index);
-                              AddTimerScreen.listOfSetTime.value
-                                  .add(listodTimer);
-                              AddTimerScreen.listOfSetTime.notifyListeners();
-                            }
-                            Navigator.pop(context);
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            scheduleNotificationButton(index, listodTimer);
                           },
-                          setTimeModel: listodTimer,
+                          child: const Text('Schedule notifications'),
                         ),
                       )
                     ],
@@ -260,46 +237,42 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
     );
   }
 
-  void scheduleNotification(int index) {
+  //schedule notifications function
+  void scheduleNotification(SetTimeModel listodTimer) {
     {
+      // AddTimerScreen.listOfUniqueId.clear();
       debugPrint(
           'Notifications Scheduled for ${setTimeModel.startDate ?? ""} ${setTimeModel.endDate ?? ""} ${setTimeModel.setTime}');
-
-      DateTime startDate = convertDateFormat(setTimeModel.startDate ?? "",
+      DateTime startDate = Const.convertDateFormat(setTimeModel.startDate ?? "",
           AppDateFormats.dateFormatDDMMYYY, AppDateFormats.dateFormatYYYYMMDD);
-      DateTime endDate = convertDateFormat(setTimeModel.endDate ?? "",
+      DateTime endDate = Const.convertDateFormat(setTimeModel.endDate ?? "",
           AppDateFormats.dateFormatDDMMYYY, AppDateFormats.dateFormatYYYYMMDD);
-
       for (int i = 0; i < setTimeModel.setTime.length; i++) {
         int hour = int.parse(setTimeModel.setTime[i]!.split(":")[0]);
         int minutes = int.parse(setTimeModel.setTime[i]!.split(":")[1]);
-
         NotificationService.scheduledNotification(
-          setTimeModel.id,
-          startDate,
-          endDate,
-          hour,
-          minutes,
-          setTimeModel.title ?? "",
-          setTimeModel.setTime[i] ?? "",
-        );
+            setTimeModel.id,
+            startDate,
+            endDate,
+            hour,
+            minutes,
+            setTimeModel.title ?? "",
+            setTimeModel.setTime[i] ?? "", (int id) {
+          listodTimer.timeId.add(id);
+        });
       }
     }
-    setTimeModel.timeId = AddTimerScreen.listOfUniqueId;
   }
 
-  DateTime convertDateFormat(
-      String inputDateString, String inputFormat, String outputFormat) {
-    try {
-      var inputDate = DateFormat(inputFormat).parse(inputDateString);
-      var outputDate = DateFormat(outputFormat).format(inputDate);
-      return DateFormat(outputFormat).parse(outputDate);
-    } catch (e) {
-      logger.e("Error converting date format: $e");
-      return DateTime.now();
+  //Todo: previous notifications
+  Future<void> cancelAllNotifications() async {
+    logger.f("previous ids$previousid");
+    for (int i = 0; i < previousid.length; i++) {
+      NotificationService.cancelNotification(previousid[i]);
     }
   }
 
+  //todo: select time function
   selectDate(
     String? selectDate,
     int index,
@@ -311,23 +284,17 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
             ? Const.parseDateString(selectDate)
             : DateTime.now(),
         firstDate: DateTime.now());
-    logger.e(selectDate);
-
     if (selectDate != null && selecteStartDate) {
-      // startDate = selectDate;
       localSetTimes[index].startDate = selectDate;
-      // listOfPillReminderModel.value[index].reminderDateOrTimeModel?.endDate =
-      //     null;
+
       isDateSelected.value = !isDateSelected.value;
     } else if (selectDate != null && selecteStartDate == false) {
       localSetTimes[index].endDate = selectDate;
-
       isDateSelected.value = !isDateSelected.value;
-      // listOfPillReminderModel.value[index].reminderDateOrTimeModel?.endDate =
-      //     selectDate;
     }
   }
 
+  // Todo:Select Date function
   Future<void> openTimePickerBottomSheet(
     String? selectedTime,
     int index,
@@ -367,5 +334,50 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
         Navigator.pop(context);
       },
     );
+  }
+
+  // Todo: Remove time function
+  void removeTime(int subIndex, SetTimeModel listodTimer) {
+    if (widget.fromEdit) {
+      if (subIndex != 0) {
+        listodTimer.setTime.removeAt(subIndex);
+        NotificationService.cancelNotification(listodTimer.timeId[subIndex]);
+      } else {
+        Const.showToast("one time filed is required");
+      }
+    } else {
+      if (subIndex != 0) {
+        listodTimer.setTime.removeAt(subIndex);
+      } else {
+        Const.showToast("one time filed is required");
+      }
+    }
+  }
+
+  //Todo:Add Time
+  void addTime(SetTimeModel listodTimer) {
+    listodTimer.setTime.add(null);
+  }
+
+  Future<void> scheduleNotificationButton(
+      int index, SetTimeModel listodTimer) async {
+    if (widget.fromEdit) {
+      cancelAllNotifications();
+      listodTimer.timeId.clear();
+      await Future.delayed(const Duration(milliseconds: 100), () {
+        scheduleNotification(listodTimer);
+      });
+      widget.setTimeModel = listodTimer;
+      localSetTimes.removeAt(index);
+      AddTimerScreen.listOfSetTime.notifyListeners();
+    } else {
+      await Future.delayed(const Duration(milliseconds: 100), () {
+        scheduleNotification(listodTimer);
+      });
+      localSetTimes.removeAt(index);
+      AddTimerScreen.listOfSetTime.value.add(listodTimer);
+      AddTimerScreen.listOfSetTime.notifyListeners();
+    }
+    Navigator.pop(context);
   }
 }
