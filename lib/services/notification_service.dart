@@ -2,8 +2,6 @@ import 'package:alarm/alarm.dart';
 import 'package:alarm/model/alarm_settings.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:local_notification_demo/logger.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
   static final notificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -13,7 +11,6 @@ class NotificationService {
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(),
     ));
-    tz.initializeTimeZones();
   }
 
   static checkPermission() {
@@ -57,7 +54,6 @@ class NotificationService {
     //   android: androidDetails,
     // );
 
-    tz.initializeTimeZones();
     for (DateTime date = startDate;
         date.isBefore(endDate.add(const Duration(days: 1)));
         date = date.add(const Duration(days: 1))) {
