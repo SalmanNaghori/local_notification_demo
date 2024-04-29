@@ -1,3 +1,5 @@
+import 'package:alarm/alarm.dart';
+import 'package:alarm/model/alarm_settings.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:local_notification_demo/logger.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -15,14 +17,25 @@ class NotificationService {
   }
 
   static checkPermission() {
-    notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()!
-        .requestNotificationsPermission();
+    if (Alarm.android) {
+      notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()!
+          .requestNotificationsPermission();
+    } else {
+      notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()!
+          .requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+    }
   }
 
   static void scheduledNotification(
-    int id,
+    DateTime selectedTime,
     DateTime startDate,
     DateTime endDate,
     int hour,
@@ -40,44 +53,72 @@ class NotificationService {
       icon: "@mipmap/ic_launcher",
     );
 
-    var notificationDetails = NotificationDetails(
-      android: androidDetails,
-    );
+    // var notificationDetails = NotificationDetails(
+    //   android: androidDetails,
+    // );
 
     tz.initializeTimeZones();
     for (DateTime date = startDate;
         date.isBefore(endDate.add(const Duration(days: 1)));
         date = date.add(const Duration(days: 1))) {
-      DateTime scheduledTime =
-          DateTime(date.year, date.month, date.day, hour, minutes);
+      // DateTime scheduledTime = DateTime(
+      //   date.year,
+      //   date.month,
+      //   date.day,
+      //   hour,
+      //   minutes,
+      // );
 
-      // If scheduled time is in the past, schedule for the next occurrence
-      if (scheduledTime.isBefore(DateTime.now())) {
-        scheduledTime = scheduledTime.add(const Duration(days: 1));
+      //
+      final DateTime now = DateTime.now();
+      selectedTime = now.copyWith(
+        year: date.year,
+        month: date.month,
+        day: date.day,
+        hour: hour,
+        minute: minutes,
+        second: 0,
+        millisecond: 0,
+        microsecond: 0,
+      );
+      if (selectedTime.isBefore(now)) {
+        selectedTime = selectedTime.add(const Duration(days: 1));
       }
 
-      // Calculate the delay until the scheduled time
-      int delay = scheduledTime.millisecondsSinceEpoch -
-          DateTime.now().millisecondsSinceEpoch;
+      // if (scheduledTime.isBefore(DateTime.now())) {
+      //   scheduledTime = scheduledTime.add(const Duration(days: 1));
+      // }
 
-      // Generate a unique ID based on the date and time
+      // int delay = scheduledTime.millisecondsSinceEpoch -
+      //     DateTime.now().millisecondsSinceEpoch;
+
       int idUnique = int.parse(
-          '${scheduledTime.day}${scheduledTime.hour}${scheduledTime.minute}');
-      // logger.f("==idUnique ==$idUnique");
+          '${selectedTime.day}${selectedTime.hour}${selectedTime.minute}');
 
       getId(idUnique);
       try {
-        await notificationsPlugin.zonedSchedule(
-          idUnique, // Unique ID for each notification
-          title,
-          body,
-          tz.TZDateTime.now(tz.local).add(Duration(milliseconds: delay)),
+        // await notificationsPlugin.zonedSchedule(
+        //   idUnique, // Unique ID for each notification
+        //   title,
+        //   body,
+        //   tz.TZDateTime.now(tz.local).add(Duration(milliseconds: delay)),
 
-          notificationDetails,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        //   notificationDetails,
+        //   uiLocalNotificationDateInterpretation:
+        //       UILocalNotificationDateInterpretation.absoluteTime,
+        //   androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        // );
+
+        final alarmSetting = AlarmSettings(
+          id: idUnique,
+          dateTime: selectedTime,
+          loopAudio: true,
+          vibrate: true,
+          assetAudioPath: 'assets/audio/marimba.mp3',
+          notificationTitle: title,
+          notificationBody: 'Your alarm ($idUnique) is ringing $body',
         );
+        Alarm.set(alarmSettings: alarmSetting);
       } catch (e) {
         logger.e('Error scheduling notification: $e');
       }

@@ -1,3 +1,4 @@
+import 'package:alarm/alarm.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -40,6 +41,8 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
   );
   final List<SetTimeModel> localSetTimes = [];
   List<int> previousid = [];
+
+  String titile = "", startDateValue = "", endDateValue = "", timeValue = "";
 
   @override
   void initState() {
@@ -96,6 +99,8 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                           child: CupertinoTextField(
                             onChanged: (value) {
                               listodTimer.title = value;
+                              titile = value;
+                              validation();
                             },
                             placeholder: "Add Label",
                             controller: TextEditingController(text: title),
@@ -223,7 +228,8 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
                         padding: const EdgeInsets.all(8.0),
                         child: ElevatedButton(
                           onPressed: () async {
-                            scheduleNotificationButton(index, listodTimer);
+                            validation();
+                            // scheduleNotificationButton(index, listodTimer);
                           },
                           child: const Text('Schedule notifications'),
                         ),
@@ -247,11 +253,17 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
           AppDateFormats.dateFormatDDMMYYY, AppDateFormats.dateFormatYYYYMMDD);
       DateTime endDate = Const.convertDateFormat(setTimeModel.endDate ?? "",
           AppDateFormats.dateFormatDDMMYYY, AppDateFormats.dateFormatYYYYMMDD);
+
       for (int i = 0; i < setTimeModel.setTime.length; i++) {
         int hour = int.parse(setTimeModel.setTime[i]!.split(":")[0]);
         int minutes = int.parse(setTimeModel.setTime[i]!.split(":")[1]);
+
+        final selectedTime = Const.convertDateFormat(
+            setTimeModel.setTime[i] ?? "",
+            AppDateFormats.dateFormatHHMM,
+            AppDateFormats.dateFormatHHMM);
         NotificationService.scheduledNotification(
-            setTimeModel.id,
+            selectedTime,
             startDate,
             endDate,
             hour,
@@ -267,7 +279,9 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
   //Todo: previous notifications
   Future<void> cancelAllNotifications() async {
     logger.f("previous ids$previousid");
+    Alarm.stopAll();
     for (int i = 0; i < previousid.length; i++) {
+      // Alarm.stop(previousid[i]);
       NotificationService.cancelNotification(previousid[i]);
     }
   }
@@ -286,10 +300,11 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
         firstDate: DateTime.now());
     if (selectDate != null && selecteStartDate) {
       localSetTimes[index].startDate = selectDate;
-
+      startDate = selectDate;
       isDateSelected.value = !isDateSelected.value;
     } else if (selectDate != null && selecteStartDate == false) {
       localSetTimes[index].endDate = selectDate;
+      endDate = selectDate;
       isDateSelected.value = !isDateSelected.value;
     }
   }
@@ -302,7 +317,7 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
   ) async {
     final time = selectedTime != null
         ? DateFormat("HH:mm").parse(selectedTime)
-        : DateTime.now();
+        : DateTime.now().add(Duration(minutes: 1));
     var selectedDocTime = '';
 
     await CustomBottomSheet.instance.modalBottomSheet(
@@ -329,6 +344,7 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
         // listOfPillReminderModel.value[index].reminderDateOrTimeModel
         //     ?.selectTime[ind] = selectedTime;
         localSetTimes[index].setTime[ind] = selectedTime;
+        timeValue = selectedTime ?? "";
         isDateSelected.value = !isDateSelected.value;
 
         Navigator.pop(context);
@@ -341,7 +357,8 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
     if (widget.fromEdit) {
       if (subIndex != 0) {
         listodTimer.setTime.removeAt(subIndex);
-        NotificationService.cancelNotification(listodTimer.timeId[subIndex]);
+        // Alarm.stop(listodTimer.timeId[subIndex]);
+        // NotificationService.cancelNotification(listodTimer.timeId[subIndex]);
       } else {
         Const.showToast("one time filed is required");
       }
@@ -351,6 +368,12 @@ class _AddTimerScreenState extends State<AddTimerScreen> {
       } else {
         Const.showToast("one time filed is required");
       }
+    }
+  }
+
+  validation() {
+    if (titile.isEmpty) {
+      Const.showToast("Title is required");
     }
   }
 

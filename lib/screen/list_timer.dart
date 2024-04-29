@@ -1,9 +1,13 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:alarm/alarm.dart';
+import 'package:alarm/model/alarm_settings.dart';
+import 'package:flutter/material.dart';
 import 'package:local_notification_demo/logger.dart';
 import 'package:local_notification_demo/model/set_time_model.dart';
 import 'package:local_notification_demo/screen/add_timer_screen.dart';
 import 'package:local_notification_demo/services/notification_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ListOfTimer extends StatefulWidget {
   const ListOfTimer({super.key});
@@ -13,6 +17,82 @@ class ListOfTimer extends StatefulWidget {
 }
 
 class _ListOfTimerState extends State<ListOfTimer> {
+  List<AlarmSettings>? alarms;
+
+  static StreamSubscription<AlarmSettings>? subscription;
+  @override
+  void initState() {
+    super.initState();
+    if (Alarm.android) {
+      checkAndroidNotificationPermission();
+      checkAndroidScheduleExactAlarmPermission();
+    }
+
+    loadAlarms();
+    subscription ??= Alarm.ringStream.stream.listen(
+      (alarmSettings) => stopAlarm(alarmSettings),
+    );
+  }
+
+  Future<void> checkAndroidNotificationPermission() async {
+    final status = await Permission.notification.status;
+    if (status.isDenied) {
+      alarmPrint('Requesting notification permission...');
+      final res = await Permission.notification.request();
+      alarmPrint(
+        'Notification permission ${res.isGranted ? '' : 'not '}granted.',
+      );
+    }
+  }
+
+  Future<void> checkAndroidExternalStoragePermission() async {
+    final status = await Permission.storage.status;
+    if (status.isDenied) {
+      alarmPrint('Requesting external storage permission...');
+      final res = await Permission.storage.request();
+      alarmPrint(
+        'External storage permission ${res.isGranted ? '' : 'not'} granted.',
+      );
+    }
+  }
+
+  Future<void> checkAndroidScheduleExactAlarmPermission() async {
+    final status = await Permission.scheduleExactAlarm.status;
+    alarmPrint('Schedule exact alarm permission: $status.');
+    if (status.isDenied) {
+      alarmPrint('Requesting schedule exact alarm permission...');
+      final res = await Permission.scheduleExactAlarm.request();
+      alarmPrint(
+        'Schedule exact alarm permission ${res.isGranted ? '' : 'not'} granted.',
+      );
+    }
+  }
+
+  void loadAlarms() {
+    setState(() {
+      alarms = Alarm.getAlarms();
+      alarms?.sort((a, b) => a.dateTime.isBefore(b.dateTime) ? 0 : 1);
+    });
+  }
+
+  @override
+  void dispose() {
+    subscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> stopAlarm(AlarmSettings alarmSettings) async {
+    Alarm.stop(alarmSettings.id);
+    // await Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (context) =>
+    //         ExampleAlarmRingScreen(alarmSettings: alarmSettings),
+    //   ),
+    // );
+    loadAlarms();
+  }
+
   ValueNotifier<bool> isDateSelected = ValueNotifier(false);
 
   SetTimeModel setTimeModel = SetTimeModel(
